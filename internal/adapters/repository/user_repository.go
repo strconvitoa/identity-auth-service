@@ -1,0 +1,165 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+
+	"github.com/strconvitoa/martian-service/internal/core/domain"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+type PostgresUserRepository struct {
+	db *pgxpool.Pool
+}
+
+func NewPostgresUserRepository(db *pgxpool.Pool) *PostgresUserRepository {
+	return &PostgresUserRepository{
+		db: db,
+	}
+}
+
+func (r *PostgresUserRepository) Save(user domain.User) (domain.User, error) {
+
+	query := `
+        INSERT INTO users (id, name, password, email, org_id, role, status,phone) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, name, password, email, org_id, role, status,phone
+    `
+	err := r.db.QueryRow(
+		context.Background(),
+		query,
+		user.ID,
+		user.Name,
+		user.Password,
+		user.Email,
+		user.OrgID,
+		user.Role,
+		user.Status,
+		user.Phone,
+	).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Password,
+		&user.Email,
+		&user.OrgID,
+		&user.Role,
+		&user.Status,
+		&user.Phone,
+	)
+
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	return user, nil
+}
+
+func (r *PostgresUserRepository) Get(email string) (domain.User, error) {
+	// 1. Declare the variable to hold the result
+	var user domain.User
+
+	// 2. Use a placeholder ($1) for the parameter
+	// Avoid 'SELECT *' in production; explicitly list columns to match your Scan
+	query := `
+        SELECT id, name, email, org_id, role, status,phone 
+        FROM users 
+        WHERE email = $1
+    `
+
+	// 3. Use QueryRow and Scan the results into the user struct
+	err := r.db.QueryRow(context.Background(), query, email).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.OrgID,
+		&user.Role,
+		&user.Status,
+		&user.Phone,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Handle the case where no user was found gracefully
+			return domain.User{}, errors.New("user not found")
+		}
+		return domain.User{}, err
+	}
+
+	return user, nil
+}
+
+func (r *PostgresUserRepository) UpdatePassword(user domain.User) (domain.User, error) {
+	query := `
+        UPDATE users 
+        SET password = $1,status = 'active'
+        WHERE email = $2 AND id = $3
+        RETURNING id, name, email, org_id, role, status, phone
+    `
+
+	// Create a fresh, empty user instance to hold the exact database return values
+	var updatedUser domain.User
+
+	// Scan into the new updatedUser struct variables
+	err := r.db.QueryRow(
+		context.Background(),
+		query,
+		user.Password,
+		user.Email,
+		user.ID,
+	).Scan(
+		&updatedUser.ID,
+		&updatedUser.Name,
+		&updatedUser.Email,
+		&updatedUser.OrgID,
+		&updatedUser.Role,
+		&updatedUser.Status,
+		&updatedUser.Phone,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return domain.User{}, errors.New("user not found")
+		}
+		return domain.User{}, err
+	}
+
+	// Returns the clean object directly matching the SQL RETURNING clause
+	return updatedUser, nil
+}
+func (r *PostgresUserRepository) UpdateStatus(user domain.User) (domain.User, error) {
+	// 1. Update the RETURNING clause to include all user columns
+	query := `
+        UPDATE users 
+        SET status = $1
+        WHERE email = $2 AND id = $3
+        RETURNING id, name, password, email, org_id, role, status
+    `
+
+	// 2. Expand the Scan method to receive all returned columns
+	err := r.db.QueryRow(
+		context.Background(),
+		query,
+		user.Status,
+		user.Email,
+		user.ID,
+	).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Password,
+		&user.Email,
+		&user.OrgID,
+		&user.Role,
+		&user.Status,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return domain.User{}, errors.New("user not found")
+		}
+		return domain.User{}, err
+	}
+
+	return user, nil
+}
