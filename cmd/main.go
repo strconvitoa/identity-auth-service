@@ -80,5 +80,5 @@ func main() {
 	app.Static("/static", "../public")
 
 	// log.Fatal(app.Listen(":3001"))
-	log.Fatal(app.ListenTLS(":8443", "../cert.pem", "../key.pem"))
+	log.Fatal(app.ListenTLS(":8443", "./cert.pem", "./key.pem"))
 }

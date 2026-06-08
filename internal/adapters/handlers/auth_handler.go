@@ -76,7 +76,7 @@ func (h *AuthHandler) Change(c *fiber.Ctx) error {
 		return c.Status(400).JSON(res)
 	}
 	usr, _ := h.usrsvc.GetByEmail(req.Email)
-	usr.Password = req.Password
+	usr.Password = pword
 	savedusr, err := h.usrsvc.ChangePassword(usr)
 	err = h.authsvc.RemoveByEmail(authReq.Email)
 	if err != nil {
