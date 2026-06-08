@@ -18,11 +18,19 @@ func NewUserService(repo ports.UserRepository) ports.UserService {
 func (s *userService) CreateUser(user domain.User) (domain.User, error) {
 	id := uuid.New().String()
 	user.ID = id
-	_, err := s.repo.Save(user)
+	savusr, err := s.repo.Save(user)
 	if err != nil {
 		return domain.User{}, err
 	}
-	return user, nil
+	return savusr, nil
+}
+func (s *userService) IsExistingUser(email string) (bool, error) {
+
+	exists, err := s.repo.Exists(email)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
 func (s *userService) GetByEmail(email string) (domain.User, error) {
 
@@ -47,4 +55,12 @@ func (s *userService) ChangePassword(user domain.User) (domain.User, error) {
 		return domain.User{}, err
 	}
 	return savedUser, nil
+}
+func (s *userService) RemoveByEmail(email string) error {
+
+	err := s.repo.DeleteByEmail(email)
+	if err != nil {
+		return err
+	}
+	return nil
 }

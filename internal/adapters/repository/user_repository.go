@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/strconvitoa/martian-service/internal/core/domain"
 
@@ -21,11 +22,11 @@ func NewPostgresUserRepository(db *pgxpool.Pool) *PostgresUserRepository {
 }
 
 func (r *PostgresUserRepository) Save(user domain.User) (domain.User, error) {
-
+	svdusr := domain.User{}
 	query := `
         INSERT INTO users (id, name, password, email, org_id, role, status,phone) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, name, password, email, org_id, role, status,phone
+        RETURNING id, name, email, org_id, role, status,phone
     `
 	err := r.db.QueryRow(
 		context.Background(),
@@ -39,23 +40,34 @@ func (r *PostgresUserRepository) Save(user domain.User) (domain.User, error) {
 		user.Status,
 		user.Phone,
 	).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Password,
-		&user.Email,
-		&user.OrgID,
-		&user.Role,
-		&user.Status,
-		&user.Phone,
+		&svdusr.ID,
+		&svdusr.Name,
+		&svdusr.Email,
+		&svdusr.OrgID,
+		&svdusr.Role,
+		&svdusr.Status,
+		&svdusr.Phone,
 	)
 
 	if err != nil {
 		return domain.User{}, err
 	}
 
-	return user, nil
+	return svdusr, nil
 }
+func (r *PostgresUserRepository) Exists(email string) (bool, error) {
+	// The query returns true if a row exists, otherwise it returns no rows/null
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
 
+	var exists bool
+	// Using QueryRowContext is idiomatic for handling timeouts and cancellations
+	err := r.db.QueryRow(context.Background(), query, email).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
 func (r *PostgresUserRepository) Get(email string) (domain.User, error) {
 	// 1. Declare the variable to hold the result
 	var user domain.User
@@ -89,7 +101,6 @@ func (r *PostgresUserRepository) Get(email string) (domain.User, error) {
 
 	return user, nil
 }
-
 func (r *PostgresUserRepository) UpdatePassword(user domain.User) (domain.User, error) {
 	query := `
         UPDATE users 
@@ -162,4 +173,20 @@ func (r *PostgresUserRepository) UpdateStatus(user domain.User) (domain.User, er
 	}
 
 	return user, nil
+}
+func (r *PostgresUserRepository) DeleteByEmail(email string) error {
+	query := `DELETE FROM users WHERE email = $1`
+
+	// pgx uses Exec instead of ExecContext, passing ctx as the first argument
+	result, err := r.db.Exec(context.Background(), query, email)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	// pgx returns a CommandTag object, which has a RowsAffected() method
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("no user found with email: %s", email)
+	}
+
+	return nil
 }

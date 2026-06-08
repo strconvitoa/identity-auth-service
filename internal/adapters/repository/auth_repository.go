@@ -20,8 +20,8 @@ func NewPostgresAuthRepository(db *pgxpool.Pool) *PostgresAuthRepository {
 
 func (r *PostgresAuthRepository) Insert(user domain.Auth) (domain.Auth, error) {
 	query := `
-        INSERT INTO auth (id, expires_at, user_id,email) 
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO auth (id, expires_at, user_id,email, token) 
+        VALUES ($1, $2, $3, $4,$5)
     `
 
 	_, err := r.db.Exec(
@@ -31,6 +31,7 @@ func (r *PostgresAuthRepository) Insert(user domain.Auth) (domain.Auth, error) {
 		user.ExpiresAt,
 		user.UserID,
 		user.Email,
+		user.Token,
 	)
 	if err != nil {
 		return domain.Auth{}, err
@@ -51,13 +52,13 @@ func (r *PostgresAuthRepository) Exists(auth domain.Auth) (bool, error) {
 		SELECT EXISTS (
 			SELECT 1 
 			FROM auth 
-			WHERE id = $1
-			AND email = $2
+			WHERE email = $1
+			AND token = $2
 			AND expires_at > NOW()
 		)`
 
 	var exists bool
-	err := r.db.QueryRow(context.Background(), query, auth.ID, auth.Email).Scan(&exists)
+	err := r.db.QueryRow(context.Background(), query, auth.Email, auth.Token).Scan(&exists)
 	if err != nil {
 		return false, err
 	}
@@ -76,4 +77,15 @@ func (r *PostgresAuthRepository) Delete(id string) (bool, error) {
 
 	// Return true if at least one row was deleted, otherwise false
 	return true, nil
+}
+func (r *PostgresAuthRepository) DeleteByEmail(email string) error {
+	query := `DELETE FROM auth WHERE email = $1`
+
+	_, err := r.db.Exec(context.Background(), query, email)
+	if err != nil {
+		// Return false instead of nil because nil is not a boolean
+		return err
+	}
+	// Return true if at least one row was deleted, otherwise false
+	return nil
 }

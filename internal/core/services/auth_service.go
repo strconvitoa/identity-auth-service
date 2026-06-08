@@ -1,13 +1,15 @@
 package services
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
-	"net/smtp"
+	"math/big"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/strconvitoa/martian-service/internal/core/ports"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/strconvitoa/martian-service/internal/core/domain"
 )
@@ -40,6 +42,9 @@ func (s *authService) Authenticate(auth domain.Auth) (domain.Auth, error) {
 func (s *authService) Reset(auth domain.Auth, timeToExpire string) (domain.Auth, error) {
 	id := uuid.New().String()
 	exp, err := s.generateExpiresAtTime(timeToExpire)
+	token, _ := s.generateToken()
+	fmt.Printf("Reset Link Token: %s\n", token)
+	auth.Token = token
 	auth.ID = id
 	auth.ExpiresAt = exp
 	in, err := s.repo.Insert(auth)
@@ -47,6 +52,20 @@ func (s *authService) Reset(auth domain.Auth, timeToExpire string) (domain.Auth,
 		return domain.Auth{}, err
 	}
 	return in, nil
+}
+func (s *authService) Remove(id string) (bool, error) {
+	_, err := s.repo.Delete(id)
+	if err != nil {
+		return false, err
+	}
+	return true, err
+}
+func (s *authService) RemoveByEmail(email string) error {
+	err := s.repo.DeleteByEmail(email)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *authService) generateExpiresAtTime(timeToExpire string) (string, error) {
@@ -64,32 +83,28 @@ func (s *authService) generateExpiresAtTime(timeToExpire string) (string, error)
 	return expirationTime.Format(time.RFC3339), nil
 }
 
-func (s *authService) SendEmail(toEmail string, subject string, body string) error {
-	// 1. Configuration - Use environment variables for these!
-	from := "your-email@gmail.com"
-	password := "your-app-password" // Not your login password!
-	smtpHost := "smtp.gmail.com"
-	smtpPort := "587"
-
-	// 2. Format the message
-	// SMTP messages require a specific format: "Subject: ... \n\n Body"
-	message := []byte(fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, body))
-
-	// 3. Authentication
-	auth := smtp.PlainAuth("", from, password, smtpHost)
-
-	// 4. Send the email
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{toEmail}, message)
+func (s *authService) generateToken() (string, error) {
+	// Max value is 1000000, so Int returns a number from 0 to 999999
+	max := big.NewInt(1000000)
+	n, err := rand.Int(rand.Reader, max)
 	if err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+		return "", err
 	}
 
-	return nil
+	// Format as a 6-digit string, padding with leading zeros if necessary (e.g., 004321)
+	return fmt.Sprintf("%06d", n), nil
 }
-func (s *authService) Remove(id string) (bool, error) {
-	_, err := s.repo.Delete(id)
+
+func (s *authService) HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	return true, err
+	return string(bytes), nil
+}
+
+// CheckPasswordHash compares a plain text password with a bcrypt hash
+func (s *authService) CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }

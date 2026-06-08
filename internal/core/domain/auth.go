@@ -6,4 +6,5 @@ type Auth struct {
 	Email     string `json:"email"`
 	ExpiresAt string `jaon:"expires_at"`
 	UserID    string `json:"user_id"`
+	Token     string `json:"token"`
 }

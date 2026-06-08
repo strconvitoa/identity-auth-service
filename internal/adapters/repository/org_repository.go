@@ -36,3 +36,29 @@ func (r *PostgresOrgRepository) Save(Org domain.Org) (domain.Org, error) {
 
 	return Org, nil
 }
+func (r *PostgresOrgRepository) Exists(org domain.Org) (bool, error) {
+	// The query returns true if a row exists, otherwise it returns no rows/null
+	query := `SELECT EXISTS(SELECT 1 FROM orgs WHERE name = $1 AND trade_name = $2)`
+
+	var exists bool
+	// Using QueryRowContext is idiomatic for handling timeouts and cancellations
+	err := r.db.QueryRow(context.Background(), query, org.Name, org.TradeName).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+func (r *PostgresOrgRepository) ExistsByID(id string) (bool, error) {
+	// The query returns true if a row exists, otherwise it returns no rows/null
+	query := `SELECT EXISTS(SELECT 1 FROM orgs WHERE id = $1)`
+
+	var exists bool
+	// Using QueryRowContext is idiomatic for handling timeouts and cancellations
+	err := r.db.QueryRow(context.Background(), query, id).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
