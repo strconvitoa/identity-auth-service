@@ -21,9 +21,9 @@ func NewPostgresIntakeRepository(db *pgxpool.Pool) *PostgresIntakeRepository {
 func (r *PostgresIntakeRepository) Save(intake domain.Intake) (domain.Intake, error) {
 
 	query := `
-        INSERT INTO intakes (id, name, email, phone, issue, org_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, name, email, phone, issue, org_id
+        INSERT INTO intakes (id, name, email, phone, issue, org_id,summary,lang)
+        VALUES ($1, $2, $3, $4, $5, $6,$7,$8)
+        RETURNING id, name, email, phone, issue, org_id, summary, lang
     `
 	err := r.db.QueryRow(
 		context.Background(),
@@ -34,6 +34,8 @@ func (r *PostgresIntakeRepository) Save(intake domain.Intake) (domain.Intake, er
 		intake.Phone,
 		intake.Issue,
 		intake.OrgID,
+		intake.Summary,
+		intake.Lang,
 	).Scan(
 		&intake.ID,
 		&intake.Name,
@@ -41,6 +43,8 @@ func (r *PostgresIntakeRepository) Save(intake domain.Intake) (domain.Intake, er
 		&intake.Phone,
 		&intake.Issue,
 		&intake.OrgID,
+		&intake.Summary,
+		&intake.Lang,
 	)
 
 	if err != nil {

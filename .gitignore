@@ -1,0 +1,10 @@
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+# IDE and Editor settings
+.vscode/
+.cursor/
+# Secret keys and local TLS certificates
+*.pem
+__debug_bin*

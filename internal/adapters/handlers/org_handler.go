@@ -8,12 +8,13 @@ import (
 )
 
 type OrgHandler struct {
-	orgsvc ports.OrgService
-	usrsvc ports.UserService
+	orgsvc  ports.OrgService
+	usrsvc  ports.UserService
+	authsvc ports.AuthService
 }
 
-func NewOrgHandler(orgsvc ports.OrgService, usrsvc ports.UserService) *OrgHandler {
-	return &OrgHandler{orgsvc: orgsvc, usrsvc: usrsvc}
+func NewOrgHandler(orgsvc ports.OrgService, usrsvc ports.UserService, authsvc ports.AuthService) *OrgHandler {
+	return &OrgHandler{orgsvc: orgsvc, usrsvc: usrsvc, authsvc: authsvc}
 }
 
 func (h *OrgHandler) Create(c *fiber.Ctx) error {
@@ -26,16 +27,29 @@ func (h *OrgHandler) Create(c *fiber.Ctx) error {
 		Status    string `json:"status"`
 		Phone     string `json:"phone"`
 	}
+	res := domain.Envelope[domain.User]{Success: false, Data: domain.User{}, Error: "Bad Request"}
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).SendString("Bad Request")
+		return c.Status(400).JSON(res)
 	}
-	ent := domain.Org{Name: req.EntName, TradeName: req.TradeName}
-	savedOrg, err := h.orgsvc.CreateOrg(ent)
-	usr := domain.User{Name: req.Name, Email: req.Email, Password: req.Password, OrgID: savedOrg.ID, Role: "admin", Status: "active", Phone: req.Phone}
+	org := domain.Org{Name: req.EntName, TradeName: req.TradeName}
+	orgExist, err := h.orgsvc.OrgExists(org)
+	if orgExist == true {
+		res.Error = "Organization already exists"
+		return c.Status(400).JSON(res)
+	}
+	savedOrg, err := h.orgsvc.CreateOrg(org)
+	pword, err := h.authsvc.HashPassword(req.Password)
+	if err != nil {
+		res.Error = "Error with hash"
+		return c.Status(401).JSON(res)
+	}
+	usr := domain.User{Name: req.Name, Email: req.Email, Password: pword, OrgID: savedOrg.ID, Role: "admin", Status: "active", Phone: req.Phone}
 	saveduser, err := h.usrsvc.CreateUser(usr)
 	if err != nil {
-		return c.Status(401).JSON(fiber.Map{"message": err.Error()})
+		return c.Status(401).JSON(res)
 	}
-	resp := saveduser.ToResponse()
-	return c.JSON(fiber.Map{"user": resp})
+	res.Data = saveduser
+	res.Success = true
+	res.Error = ""
+	return c.JSON(res)
 }
