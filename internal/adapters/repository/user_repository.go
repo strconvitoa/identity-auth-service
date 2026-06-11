@@ -68,19 +68,20 @@ func (r *PostgresUserRepository) Exists(email string) (bool, error) {
 
 	return exists, nil
 }
-func (r *PostgresUserRepository) Get(email string) (domain.User, error) {
-	// 1. Declare the variable to hold the result
-	var user domain.User
+func (r *PostgresUserRepository) CredentialsMatch(email string, password string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND password = $2)`
 
-	// 2. Use a placeholder ($1) for the parameter
-	// Avoid 'SELECT *' in production; explicitly list columns to match your Scan
+	var match bool
+	err := r.db.QueryRow(context.Background(), query, email, password).Scan(&match)
+	return match, err
+}
+func (r *PostgresUserRepository) Get(email string) (domain.User, error) {
+	var user domain.User
 	query := `
         SELECT id, name, email, org_id, role, status,phone 
         FROM users 
         WHERE email = $1
     `
-
-	// 3. Use QueryRow and Scan the results into the user struct
 	err := r.db.QueryRow(context.Background(), query, email).Scan(
 		&user.ID,
 		&user.Name,
@@ -100,6 +101,26 @@ func (r *PostgresUserRepository) Get(email string) (domain.User, error) {
 	}
 
 	return user, nil
+}
+func (r *PostgresUserRepository) SelectPassword(email string) (string, error) {
+	var pword string
+	query := `
+        SELECT password
+        FROM users 
+        WHERE email = $1
+    `
+	err := r.db.QueryRow(context.Background(), query, email).Scan(
+		&pword,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return pword, errors.New("user not found")
+		}
+		return pword, err
+	}
+
+	return pword, nil
 }
 func (r *PostgresUserRepository) UpdatePassword(user domain.User) (domain.User, error) {
 	query := `
@@ -189,4 +210,30 @@ func (r *PostgresUserRepository) DeleteByEmail(email string) error {
 	}
 
 	return nil
+}
+
+func (r *PostgresUserRepository) SelectAllByOrgID(orgID string) ([]domain.User, error) {
+	query := `
+        SELECT id, name, email,phone,role,status, org_id 
+        FROM users 
+        WHERE org_id = $1
+    `
+	rows, err := r.db.Query(context.Background(), query, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	users := make([]domain.User, 0)
+	for rows.Next() {
+		var u domain.User
+		err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.Role, &u.Status, &u.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return users, nil
 }
