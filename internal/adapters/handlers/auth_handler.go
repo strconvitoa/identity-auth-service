@@ -31,7 +31,7 @@ func (h *AuthHandler) Reset(c *fiber.Ctx) error {
 		res.Error = "Bad Request"
 		return c.Status(400).JSON(res)
 	}
-	usr, err := h.usrsvc.GetByEmail(req.Email)
+	usr, err := h.usrsvc.FindByEmail(req.Email)
 	if err != nil {
 		res.Success = false
 		res.Error = "No User with that email"
@@ -44,7 +44,7 @@ func (h *AuthHandler) Reset(c *fiber.Ctx) error {
 		return c.Status(401).JSON(res)
 	}
 	emailBody := h.emailsvc.GetVerificationEmailBody(savedAuth.Token)
-	err = h.emailsvc.SendEmail(req.Email, "[Action Required] Verify you are a Martian 🧑‍🚀", emailBody)
+	err = h.emailsvc.SendEmail(req.Email, "🚀[Action Required] Reset Password", emailBody)
 	if err != nil {
 		return c.Status(401).JSON(res)
 	}
@@ -75,8 +75,8 @@ func (h *AuthHandler) Change(c *fiber.Ctx) error {
 		res.Error = "Not a valid user"
 		return c.Status(400).JSON(res)
 	}
-	usr, _ := h.usrsvc.GetByEmail(req.Email)
-	usr.Password = req.Password
+	usr, _ := h.usrsvc.FindByEmail(req.Email)
+	usr.Password = pword
 	savedusr, err := h.usrsvc.ChangePassword(usr)
 	err = h.authsvc.RemoveByEmail(authReq.Email)
 	if err != nil {

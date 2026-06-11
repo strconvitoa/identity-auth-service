@@ -43,7 +43,6 @@ func (s *authService) Reset(auth domain.Auth, timeToExpire string) (domain.Auth,
 	id := uuid.New().String()
 	exp, err := s.generateExpiresAtTime(timeToExpire)
 	token, _ := s.generateToken()
-	fmt.Printf("Reset Link Token: %s\n", token)
 	auth.Token = token
 	auth.ID = id
 	auth.ExpiresAt = exp

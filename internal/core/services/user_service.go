@@ -32,7 +32,7 @@ func (s *userService) IsExistingUser(email string) (bool, error) {
 	}
 	return exists, nil
 }
-func (s *userService) GetByEmail(email string) (domain.User, error) {
+func (s *userService) FindByEmail(email string) (domain.User, error) {
 
 	savedUser, err := s.repo.Get(email)
 	if err != nil {
@@ -40,6 +40,22 @@ func (s *userService) GetByEmail(email string) (domain.User, error) {
 	}
 	return savedUser, nil
 }
+func (s *userService) FindAllByOrgID(orgID string) ([]domain.User, error) {
+
+	allusr, err := s.repo.SelectAllByOrgID(orgID)
+	if err != nil {
+		return []domain.User{}, err
+	}
+	return allusr, nil
+}
+func (s *userService) FindPasswordByEmail(email string) (string, error) {
+	pword, err := s.repo.SelectPassword(email)
+	if err != nil {
+		return "", err
+	}
+	return pword, nil
+}
+
 func (s *userService) ChangeStatus(user domain.User) (domain.User, error) {
 
 	savedUser, err := s.repo.UpdateStatus(user)
@@ -57,10 +73,17 @@ func (s *userService) ChangePassword(user domain.User) (domain.User, error) {
 	return savedUser, nil
 }
 func (s *userService) RemoveByEmail(email string) error {
-
 	err := s.repo.DeleteByEmail(email)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+func (s *userService) UserExists(email string, password string) (bool, error) {
+
+	exists, err := s.repo.CredentialsMatch(email, password)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }

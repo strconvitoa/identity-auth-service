@@ -14,11 +14,14 @@ type AuthService interface {
 
 type UserService interface {
 	CreateUser(user domain.User) (domain.User, error)
-	GetByEmail(email string) (domain.User, error)
+	FindByEmail(email string) (domain.User, error)
 	ChangePassword(user domain.User) (domain.User, error)
 	ChangeStatus(user domain.User) (domain.User, error)
 	IsExistingUser(email string) (bool, error)
 	RemoveByEmail(email string) error
+	UserExists(email string, password string) (bool, error)
+	FindPasswordByEmail(email string) (string, error)
+	FindAllByOrgID(orgID string) ([]domain.User, error)
 }
 
 type OrgService interface {
@@ -26,8 +29,9 @@ type OrgService interface {
 	OrgExists(org domain.Org) (bool, error)
 	OrgExistsByID(id string) (bool, error)
 }
-type IntakeService interface {
-	CreateIntake(intake domain.Intake) (domain.Intake, error)
+type LeadService interface {
+	CreateLead(Lead domain.Lead) (domain.Lead, error)
+	FindLeadByStatus(org_id string, status string) ([]domain.Lead, error)
 }
 
 type EmailService interface {

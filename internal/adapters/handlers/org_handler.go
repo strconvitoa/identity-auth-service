@@ -21,7 +21,7 @@ func (h *OrgHandler) Create(c *fiber.Ctx) error {
 	var req struct {
 		Name      string `json:"name"`
 		Email     string `json:"email"`
-		EntName   string `json:"entname"`
+		BusName   string `json:"busname"`
 		TradeName string `json:"trade_name"`
 		Password  string `json:"password"`
 		Status    string `json:"status"`
@@ -31,7 +31,7 @@ func (h *OrgHandler) Create(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(res)
 	}
-	org := domain.Org{Name: req.EntName, TradeName: req.TradeName}
+	org := domain.Org{Name: req.BusName, TradeName: req.TradeName}
 	orgExist, err := h.orgsvc.OrgExists(org)
 	if orgExist == true {
 		res.Error = "Organization already exists"

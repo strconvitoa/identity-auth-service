@@ -9,6 +9,9 @@ type UserRepository interface {
 	UpdateStatus(user domain.User) (domain.User, error)
 	Exists(email string) (bool, error)
 	DeleteByEmail(email string) error
+	CredentialsMatch(email string, password string) (bool, error)
+	SelectPassword(email string) (string, error)
+	SelectAllByOrgID(orgID string) ([]domain.User, error)
 	//Delete(id string) error
 }
 type OrgRepository interface {
@@ -20,11 +23,9 @@ type OrgRepository interface {
 	// Delete(id string) error
 }
 
-type IntakeRepository interface {
-	Save(user domain.Intake) (domain.Intake, error)
-	// GetByName(email string) (domain.Org, error)
-	// GetByID(id string) (domain.Org, error)
-	// Delete(id string) error
+type LeadRepository interface {
+	Save(user domain.Lead) (domain.Lead, error)
+	SelectByStatus(org_id string, status string) ([]domain.Lead, error)
 }
 
 type AuthRepository interface {

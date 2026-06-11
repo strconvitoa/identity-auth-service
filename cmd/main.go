@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	handler "github.com/strconvitoa/martian-service/internal/adapters/handlers"
@@ -55,30 +56,39 @@ func main() {
 	orgRepo := repository.NewPostgresOrgRepository(dbPool)
 	userRepo := repository.NewPostgresUserRepository(dbPool)
 	authRepo := repository.NewPostgresAuthRepository(dbPool)
-	intakeRepo := repository.NewPostgresIntakeRepository(dbPool)
+	LeadRepo := repository.NewPostgresLeadRepository(dbPool)
 
 	// Inject into services
 	orgsvc := services.NewOrgService(orgRepo)
 	usrsvc := services.NewUserService(userRepo)
 	authsvc := services.NewAuthService(authRepo)
-	intakesvc := services.NewIntakeService(intakeRepo)
+	Leadsvc := services.NewLeadService(LeadRepo)
 	emailsvc := services.NewEmailService()
 	// Setup handlers
 	usrhdl := handler.NewUserHandler(usrsvc, authsvc, emailsvc, orgsvc)
 	enthdl := handler.NewOrgHandler(orgsvc, usrsvc, authsvc)
 	authhdl := handler.NewAuthHandler(authsvc, usrsvc, emailsvc)
-	intakehhdl := handler.NewIntakeHandler(intakesvc)
+	leadhhdl := handler.NewLeadHandler(Leadsvc)
 
 	app := fiber.New()
-
+	app.Post("/users/login", usrhdl.Login)
 	app.Post("/users", usrhdl.Create)
+	app.Get("/users", usrhdl.Get)
+	app.Delete("/users/remove", usrhdl.Remove)
 	app.Post("/orgs", enthdl.Create)
-	app.Post("/intakes", intakehhdl.Create)
+	app.Post("/leads", leadhhdl.Create)
+	app.Get("/leads", leadhhdl.Get)
 	app.Post("/auth/reset-password", authhdl.Reset)
 	app.Post("/auth/change-password", authhdl.Change)
 
 	app.Static("/static", "../public")
-
-	// log.Fatal(app.Listen(":3001"))
-	log.Fatal(app.ListenTLS(":8443", "../cert.pem", "../key.pem"))
+	app.Use(cors.New(cors.Config{
+		// Ensure the exact protocol (http vs https) and port match your frontend
+		AllowOrigins:     "http://localhost:3000/",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
+		AllowCredentials: true,
+	}))
+	//log.Fatal(app.Listen(":8443"))
+	log.Fatal(app.ListenTLS(":8443", "./cert.pem", "./key.pem"))
 }
