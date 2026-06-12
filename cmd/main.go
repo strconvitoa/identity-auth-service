@@ -71,24 +71,24 @@ func main() {
 	leadhhdl := handler.NewLeadHandler(Leadsvc)
 
 	app := fiber.New()
+	app.Use(cors.New(cors.Config{
+		// Ensure the exact protocol (http vs https) and port match your frontend
+		AllowOrigins:     "http://localhost:3000",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		AllowCredentials: true,
+	}))
+	app.Static("/static", "../public")
 	app.Post("/users/login", usrhdl.Login)
 	app.Post("/users", usrhdl.Create)
 	app.Get("/users", usrhdl.Get)
-	app.Delete("/users/remove", usrhdl.Remove)
+	app.Delete("/users", usrhdl.Remove)
 	app.Post("/orgs", enthdl.Create)
 	app.Post("/leads", leadhhdl.Create)
+	app.Put("/leads/:id", leadhhdl.Update)
 	app.Get("/leads", leadhhdl.Get)
 	app.Post("/auth/reset-password", authhdl.Reset)
 	app.Post("/auth/change-password", authhdl.Change)
-
-	app.Static("/static", "../public")
-	app.Use(cors.New(cors.Config{
-		// Ensure the exact protocol (http vs https) and port match your frontend
-		AllowOrigins:     "http://localhost:3000/",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
-		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
-		AllowCredentials: true,
-	}))
 	//log.Fatal(app.Listen(":8443"))
 	log.Fatal(app.ListenTLS(":8443", "./cert.pem", "./key.pem"))
 }

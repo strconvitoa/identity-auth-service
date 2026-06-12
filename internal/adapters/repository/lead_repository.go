@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/strconvitoa/martian-service/internal/core/domain"
@@ -20,7 +22,7 @@ func NewPostgresLeadRepository(db *pgxpool.Pool) *PostgresLeadRepository {
 }
 
 func (r *PostgresLeadRepository) Save(lead domain.Lead) (domain.Lead, error) {
-	savedlead := domain.Lead{}
+	slead := domain.Lead{}
 	query := `
         INSERT INTO leads (id, name, email, phone, issue, org_id,summary,lang,status,area,description,urgency,quality,conflict,retention)
         VALUES ($1, $2, $3, $4, $5, $6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
@@ -39,45 +41,64 @@ func (r *PostgresLeadRepository) Save(lead domain.Lead) (domain.Lead, error) {
 		lead.Lang,
 		lead.Status, lead.Area, lead.Description, lead.Urgency, lead.Quality, lead.Conflict, lead.Retention,
 	).Scan(
-		&savedlead.ID,
-		&savedlead.Name,
-		&savedlead.Email,
-		&savedlead.Phone,
-		&savedlead.Issue,
-		&savedlead.OrgID,
-		&savedlead.Summary,
-		&savedlead.Lang, &savedlead.Status, &savedlead.Area, &savedlead.Description, &savedlead.Urgency, &savedlead.Quality, &savedlead.Conflict, &savedlead.Retention, &savedlead.Created,
+		&slead.ID,
+		&slead.Name,
+		&slead.Email,
+		&slead.Phone,
+		&slead.Issue,
+		&slead.OrgID,
+		&slead.Summary,
+		&slead.Lang, &slead.Status, &slead.Area, &slead.Description, &slead.Urgency, &slead.Quality, &slead.Conflict, &slead.Retention, &slead.Created,
 	)
 
 	if err != nil {
 		return domain.Lead{}, err
 	}
 
-	return savedlead, nil
+	return slead, nil
+}
+func (r *PostgresLeadRepository) UpdateLeadStatus(id string, status string) (domain.Lead, error) {
+	var slead domain.Lead
+	query := `
+		UPDATE leads 
+		SET status = $1
+		WHERE id = $2
+		RETURNING id, org_id, name,email,phone,issue,summary,lang,status,area,description, urgency,quality,conflict,retention, created_at;
+	`
+	err := r.db.QueryRow(context.Background(), query, status, id).Scan(
+		&slead.ID,
+		&slead.OrgID,
+		&slead.Name,
+		&slead.Email,
+		&slead.Phone,
+		&slead.Issue,
+		&slead.Summary,
+		&slead.Lang, &slead.Status, &slead.Area, &slead.Description, &slead.Urgency, &slead.Quality, &slead.Conflict, &slead.Retention, &slead.Created,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.Lead{}, fmt.Errorf("lead with id %s not found", id)
+		}
+		return domain.Lead{}, fmt.Errorf("failed to update lead status: %w", err)
+	}
+
+	return slead, nil
 }
 func (r *PostgresLeadRepository) SelectByStatus(org_id string, status string) ([]domain.Lead, error) {
-	// 1. Initialize a slice to hold the results.
-	// Using an empty slice instead of nil ensures you return `[]` instead of `null` in JSON.
 	leads := []domain.Lead{}
-
-	// 2. Define the query
 	query := `
         SELECT id, name,email,phone,issue,org_id,summary,lang, status, area, description,urgency,quality,conflict,retention,created_at 
         FROM leads 
         WHERE org_id = $1 AND status = $2
     `
-
-	// 3. Execute the query
 	rows, err := r.db.Query(context.Background(), query, org_id, status)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select leads by status: %w", err)
 	}
 	defer rows.Close()
-
-	// 4. Iterate through the result set
 	for rows.Next() {
 		var lead domain.Lead
-		// Destination arguments must match the columns in your SELECT statement exactly
 		err := rows.Scan(
 			&lead.ID,
 			&lead.Name,

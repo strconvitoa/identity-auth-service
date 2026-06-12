@@ -26,6 +26,7 @@ type OrgRepository interface {
 type LeadRepository interface {
 	Save(user domain.Lead) (domain.Lead, error)
 	SelectByStatus(org_id string, status string) ([]domain.Lead, error)
+	UpdateLeadStatus(id string, status string) (domain.Lead, error)
 }
 
 type AuthRepository interface {

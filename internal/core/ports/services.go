@@ -31,6 +31,7 @@ type OrgService interface {
 }
 type LeadService interface {
 	CreateLead(Lead domain.Lead) (domain.Lead, error)
+	ChageLeadStatus(id string, status string) (domain.Lead, error)
 	FindLeadByStatus(org_id string, status string) ([]domain.Lead, error)
 }
 

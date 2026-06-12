@@ -33,3 +33,11 @@ func (s *leadService) FindLeadByStatus(org_id string, status string) ([]domain.L
 	}
 	return sleads, nil
 }
+
+func (s *leadService) ChageLeadStatus(org_id string, status string) (domain.Lead, error) {
+	sleads, err := s.repo.UpdateLeadStatus(org_id, status)
+	if err != nil {
+		return domain.Lead{}, err
+	}
+	return sleads, nil
+}

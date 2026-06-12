@@ -37,6 +37,28 @@ func (h *LeadHandler) Create(c *fiber.Ctx) error {
 	res.Error = ""
 	return c.Status(200).JSON(res)
 }
+func (h *LeadHandler) Update(c *fiber.Ctx) error {
+	req := domain.Lead{}
+	res := domain.Envelope[domain.Lead]{Success: false, Data: domain.Lead{}, Error: ""}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Missing ID"})
+	}
+	if err := c.BodyParser(&req); err != nil {
+		res.Error = "Bad Request"
+		return c.Status(400).JSON(res)
+	}
+	lead, err := h.leadsvc.ChageLeadStatus(id, req.Status)
+	if err != nil {
+		res.Success = false
+		res.Error = "Error creating Lead"
+		return c.Status(401).JSON(res)
+	}
+	res.Success = true
+	res.Data = lead
+	res.Error = ""
+	return c.Status(200).JSON(res)
+}
 
 func (h *LeadHandler) Get(c *fiber.Ctx) error {
 
@@ -44,7 +66,7 @@ func (h *LeadHandler) Get(c *fiber.Ctx) error {
 	queryParams := c.Queries()
 	org_id := queryParams["org_id"]
 	dataPayload := domain.LeadsResp{Leads: []domain.Lead{}, Discarded: []domain.Lead{}, Pending: []domain.Lead{}, NewLeads: 0}
-	aleads, err := h.leadsvc.FindLeadByStatus(org_id, "active")
+	aleads, err := h.leadsvc.FindLeadByStatus(org_id, "accept")
 	dleads, err := h.leadsvc.FindLeadByStatus(org_id, "discard")
 	pleads, err := h.leadsvc.FindLeadByStatus(org_id, "pending")
 
